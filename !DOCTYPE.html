@@ -4,9 +4,212 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal Pengumuman Hasil Ujian Sekolah</title>
+    
+    <!-- 
+    🔥 FIREBASE INTEGRATION INFO
+    ============================
+    This application now supports Firebase Realtime Database for real-time data synchronization.
+    
+    To enable Firebase integration:
+    1. Go to https://console.firebase.google.com
+    2. Select your project or create a new one
+    3. Enable Realtime Database (create database in asia-southeast1 region)
+    4. Go to Project Settings → General → Your apps → SDK setup and configuration
+    5. Click "Add app" → Web (</strong>) and copy the configuration
+    6. In the app dashboard, click "🔐 Konfigurasi Firebase" and paste your credentials
+    
+    If Firebase is not configured, the app will use localStorage as fallback.
+    -->
+    
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, get, update, remove, onValue, off, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        
+        // Load Firebase configuration from localStorage if available
+        let firebaseConfig = {
+            apiKey: "AIzaSyDr_t5rRp7IytAE7XONpK3Po1nLrBjnXT0",
+            authDomain: "pengumuman-nilai.firebaseapp.com",
+            databaseURL: "https://pengumuman-nilai-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "pengumuman-nilai",
+            storageBucket: "pengumuman-nilai.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef1234567890"
+        };
+        
+        // Try to load saved config
+        try {
+            const savedConfig = localStorage.getItem('firebaseConfig');
+            if (savedConfig) {
+                const parsedConfig = JSON.parse(savedConfig);
+                // Only use saved config if it has a valid API key
+                if (parsedConfig.apiKey && parsedConfig.apiKey !== "YOUR_API_KEY_HERE") {
+                    firebaseConfig = parsedConfig;
+                    console.log('Firebase configured with saved credentials');
+                } else {
+                    console.log('Firebase not configured yet - using placeholder values');
+                }
+            } else {
+                console.log('Firebase not configured yet - using placeholder values');
+            }
+        } catch (e) {
+            console.error('Error loading Firebase config:', e);
+        }
+        
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        
+        // Export Firebase functions for use in global scope
+        window.firebaseApp = app;
+        window.firebaseDB = db;
+        window.firebaseRef = ref;
+        window.firebaseSet = set;
+        window.firebaseGet = get;
+        window.firebaseUpdate = update;
+        window.firebaseRemove = remove;
+        window.firebaseOnValue = onValue;
+        window.firebaseOff = off;
+        window.firebaseChild = child;
+    </script>
+    
+    <script>
+        // Firebase Helper Functions
+        async function firebaseLoadData() {
+            // Check if Firebase is properly configured
+            const savedConfig = localStorage.getItem('firebaseConfig');
+            if (!savedConfig) {
+                console.log('Firebase not configured, using localStorage only');
+                return;
+            }
+            
+            try {
+                // Load profil sekolah
+                const profilSnap = await firebaseGet(firebaseRef(firebaseDB, 'profilSekolah'));
+                if (profilSnap.exists()) {
+                    profilSekolah = profilSnap.val();
+                    terapkanIdentitasKeTampilan();
+                }
+                
+                // Load data mapel
+                const mapelSnap = await firebaseGet(firebaseRef(firebaseDB, 'dataMapel'));
+                if (mapelSnap.exists()) {
+                    dataMapel = mapelSnap.val();
+                }
+                
+                // Load data siswa
+                const siswaSnap = await firebaseGet(firebaseRef(firebaseDB, 'dataSiswa'));
+                if (siswaSnap.exists()) {
+                    dataSiswa = siswaSnap.val();
+                }
+                
+                // Load password (optional - for security)
+                const pwdSnap = await firebaseGet(firebaseRef(firebaseDB, 'adminPassword'));
+                if (pwdSnap.exists()) {
+                    localStorage.setItem('sd_pengkol_pwd', pwdSnap.val());
+                }
+                
+                console.log('Data loaded from Firebase successfully');
+            } catch (error) {
+                console.error('Error loading data from Firebase:', error);
+                // Fallback to localStorage if Firebase fails
+                console.log('Falling back to localStorage');
+            }
+        }
+        
+        async function firebaseSaveProfil() {
+            try {
+                await firebaseSet(firebaseRef(firebaseDB, 'profilSekolah'), profilSekolah);
+                console.log('Profil saved to Firebase');
+            } catch (error) {
+                console.error('Error saving profil to Firebase:', error);
+            }
+        }
+        
+        async function firebaseSaveMapel() {
+            try {
+                await firebaseSet(firebaseRef(firebaseDB, 'dataMapel'), dataMapel);
+                console.log('Mapel saved to Firebase');
+            } catch (error) {
+                console.error('Error saving mapel to Firebase:', error);
+            }
+        }
+        
+        async function firebaseSaveSiswa() {
+            try {
+                await firebaseSet(firebaseRef(firebaseDB, 'dataSiswa'), dataSiswa);
+                console.log('Siswa saved to Firebase');
+            } catch (error) {
+                console.error('Error saving siswa to Firebase:', error);
+            }
+        }
+        
+        async function firebaseSavePassword(password) {
+            try {
+                await firebaseSet(firebaseRef(firebaseDB, 'adminPassword'), password);
+                console.log('Password saved to Firebase');
+            } catch (error) {
+                console.error('Error saving password to Firebase:', error);
+            }
+        }
+        
+        // Firebase Configuration Functions
+        function toggleFirebaseConfig() {
+            document.getElementById('firebaseConfigSection').classList.toggle('hidden');
+        }
+        
+        function saveFirebaseConfig() {
+            const apiKey = document.getElementById('firebaseApiKey').value.trim();
+            const authDomain = document.getElementById('firebaseAuthDomain').value.trim();
+            const databaseURL = document.getElementById('firebaseDatabaseUrl').value.trim();
+            const projectId = document.getElementById('firebaseProjectId').value.trim();
+            const storageBucket = document.getElementById('firebaseStorageBucket').value.trim();
+            const messagingSenderId = document.getElementById('firebaseMessagingSenderId').value.trim();
+            const appId = document.getElementById('firebaseAppId').value.trim();
+            
+            if (!apiKey || !projectId) {
+                showToast('API Key dan Project ID wajib diisi!', 'error');
+                return;
+            }
+            
+            // Save to localStorage for persistence
+            const config = {
+                apiKey: apiKey,
+                authDomain: authDomain || projectId + ".firebaseapp.com",
+                databaseURL: databaseURL || "https://" + projectId + "-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: projectId,
+                storageBucket: storageBucket || projectId + ".appspot.com",
+                messagingSenderId: messagingSenderId || "123456789012",
+                appId: appId || "1:" + (messagingSenderId || "123456789012") + ":web:abcdef1234567890"
+            };
+            
+            localStorage.setItem('firebaseConfig', JSON.stringify(config));
+            showToast('Konfigurasi Firebase disimpan!', 'success');
+            
+            // Reload page to apply new config
+            setTimeout(function() {
+                location.reload();
+            }, 1500);
+        }
+        
+        async function testFirebaseConnection() {
+            const statusEl = document.getElementById('firebaseStatus');
+            statusEl.innerHTML = '⏳ Menguji koneksi...';
+            
+            try {
+                // Try to read a simple value
+                await firebaseGet(firebaseRef(firebaseDB, '.info/connected'));
+                statusEl.innerHTML = '✅ Koneksi Firebase berhasil!';
+                statusEl.style.color = 'green';
+            } catch (error) {
+                statusEl.innerHTML = '❌ Koneksi Firebase gagal: ' + error.message;
+                statusEl.style.color = 'red';
+            }
+        }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -290,6 +493,22 @@
 
 
         <div id="admin-dashboard-view" class="view bg-white p-6 rounded-2xl shadow-md hidden space-y-8">
+            <!-- Firebase Status Indicator -->
+            <div id="firebaseStatusBanner" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-100 p-2 rounded-full">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-blue-800">Firebase Terhubung</h4>
+                        <p class="text-sm text-blue-600">Data disinkronkan secara real-time</p>
+                    </div>
+                </div>
+                <button onclick="toggleFirebaseConfig()" class="text-blue-600 hover:text-blue-800 text-sm font-medium">⚙️ Konfigurasi</button>
+            </div>
+            
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-4">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800">Dashboard Pengelolaan Nilai & Instansi</h2>
@@ -383,6 +602,77 @@
                 <button onclick="gantiPassword()" style="margin-top:14px;padding:10px 24px;background:linear-gradient(135deg,#d97706,#b45309);color:white;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(180,83,9,0.3);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">Simpan Password Baru</button>
             </div>
 
+            <!-- ── FIREBASE CONFIGURATION ── -->
+            <div class="bg-blue-50 p-5 rounded-xl border border-blue-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-base text-blue-800 uppercase tracking-wide">🔐 Konfigurasi Firebase</h3>
+                    <button onclick="toggleFirebaseConfig()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-xs font-semibold shadow-sm transition">⚙️ Konfigurasi</button>
+                </div>
+                <div id="firebaseConfigSection" class="hidden bg-white p-4 rounded-lg border border-blue-100 space-y-3">
+                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-gray-700">
+                        <p class="font-semibold mb-2">📋 Langkah-langkah Setup Firebase:</p>
+                        <ol class="list-decimal list-inside space-y-1 text-xs">
+                            <li>Buka <a href="https://console.firebase.google.com" target="_blank" class="text-blue-600 underline">Firebase Console</a></li>
+                            <li>Pilih project Anda atau buat project baru</li>
+                            <li>Buka <strong>Build → Realtime Database</strong> dan buat database</li>
+                            <li>Pilih lokasi: <strong>asia-southeast1</strong></li>
+                            <li>Buka <strong>Project Settings → General → Your apps → SDK setup and configuration</strong></li>
+                            <li>Pilih platform <strong>Web (</strong>)</li>
+                            <li>Copy konfigurasi dan masukkan di bawah ini</li>
+                        </ol>
+                    </div>
+                    <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-3 text-sm text-gray-700">
+                        <p class="font-semibold mb-2 text-yellow-800">⚠️ PENTING:</p>
+                        <p class="text-xs">Anda perlu memasukkan <strong>API Key</strong> dan <strong>Project ID</strong> yang valid dari Firebase Console. Konfigurasi default di atas adalah placeholder dan tidak akan berfungsi.</p>
+                    </div>
+                    <div class="bg-green-50 border border-green-100 rounded-lg p-3 text-sm text-gray-700">
+                        <p class="font-semibold mb-2 text-green-800">ℹ️ Informasi Database Anda:</p>
+                        <p class="text-xs font-mono">Database URL: <span class="text-green-700">https://pengumuman-nilai-default-rtdb.asia-southeast1.firebasedatabase.app</span></p>
+                        <p class="text-xs mt-1">Project ID yang terdeteksi: <span class="text-green-700">pengumuman-nilai</span></p>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-gray-700">
+                        <p class="font-semibold mb-2 text-blue-800">✅ API Key Sudah Disediakan:</p>
+                        <p class="text-xs">API Key telah diisi secara otomatis. Anda hanya perlu memastikan Project ID dan App ID sesuai dengan project Firebase Anda.</p>
+                    </div>
+                    <p class="text-sm text-gray-600">Masukkan konfigurasi Firebase Anda untuk mengaktifkan sinkronisasi data real-time.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block font-medium mb-1 text-gray-700 text-sm">API Key</label>
+                            <input type="text" id="firebaseApiKey" class="w-full border rounded-lg px-3 py-2 bg-white text-sm font-mono" placeholder="AIzaSy..." value="AIzaSyDr_t5rRp7IytAE7XONpK3Po1nLrBjnXT0">
+                        </div>
+                        <div>
+                            <label class="block font-medium mb-1 text-gray-700 text-sm">Auth Domain</label>
+                            <input type="text" id="firebaseAuthDomain" class="w-full border rounded-lg px-3 py-2 bg-white text-sm" placeholder="project.firebaseapp.com" value="pengumuman-nilai.firebaseapp.com">
+                        </div>
+                        <div>
+                            <label class="block font-medium mb-1 text-gray-700 text-sm">Database URL</label>
+                            <input type="text" id="firebaseDatabaseUrl" class="w-full border rounded-lg px-3 py-2 bg-white text-sm font-mono" placeholder="https://project-default-rtdb.region.firebasedatabase.app" value="https://pengumuman-nilai-default-rtdb.asia-southeast1.firebasedatabase.app">
+                        </div>
+                        <div>
+                            <label class="block font-medium mb-1 text-gray-700 text-sm">Project ID</label>
+                            <input type="text" id="firebaseProjectId" class="w-full border rounded-lg px-3 py-2 bg-white text-sm" placeholder="project-id" value="pengumuman-nilai">
+                        </div>
+                        <div>
+                            <label class="block font-medium mb-1 text-gray-700 text-sm">Storage Bucket</label>
+                            <input type="text" id="firebaseStorageBucket" class="w-full border rounded-lg px-3 py-2 bg-white text-sm" placeholder="project.appspot.com" value="pengumuman-nilai.appspot.com">
+                        </div>
+                        <div>
+                            <label class="block font-medium mb-1 text-gray-700 text-sm">Messaging Sender ID</label>
+                            <input type="text" id="firebaseMessagingSenderId" class="w-full border rounded-lg px-3 py-2 bg-white text-sm" placeholder="123456789012" value="123456789012">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block font-medium mb-1 text-gray-700 text-sm">App ID</label>
+                            <input type="text" id="firebaseAppId" class="w-full border rounded-lg px-3 py-2 bg-white text-sm font-mono" placeholder="1:123456789012:web:abcdef..." value="1:123456789012:web:abcdef1234567890">
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="saveFirebaseConfig()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">💾 Simpan Konfigurasi</button>
+                        <button onclick="testFirebaseConnection()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">🧪 Test Koneksi</button>
+                    </div>
+                    <div id="firebaseStatus" class="text-sm mt-2"></div>
+                </div>
+            </div>
+
             <div>
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-bold text-base text-blue-800 uppercase tracking-wide">3. Input Nilai & Database Siswa</h3>
@@ -415,48 +705,43 @@
                 </div>
             </div>
 
-            <div id="raport-cetak" style="background:white;padding:48px;max-width:794px;margin:0 auto;border-top:14px solid #1e3a8a;box-shadow:0 8px 40px rgba(0,0,0,0.12);font-family:'Times New Roman',serif;">
+            <div id="raport-cetak" style="background:white;width:794px;min-height:1123px;padding:60px 70px;margin:0 auto;border-top:14px solid #1e3a8a;box-shadow:0 8px 40px rgba(0,0,0,0.12);font-family:'Times New Roman',serif;box-sizing:border-box;">
                 <!-- KOP SURAT -->
                 <div style="text-align:center;border-bottom:4px solid #111;padding-bottom:16px;margin-bottom:24px;">
-                    <h2 style="font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#111;margin:0 0 4px;">PEMERINTAH KABUPATEN / KOTA DINAS PENDIDIKAN</h2>
+                    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#111;margin:0 0 4px;">PEMERINTAH KABUPATEN / KOTA DINAS PENDIDIKAN</h2>
                     <h3 id="rptNamaSekolah" style="font-size:20px;font-weight:900;text-transform:uppercase;color:#1a1a1a;margin:0 0 4px;">SD NEGERI PENGKOL</h3>
                     <p id="rptAlamatSekolah" style="font-size:11px;color:#555;font-style:italic;margin:0;">Alamat: Jl. Raya Pengkol No. 12, Jawa Tengah | Telp: (021) 555-9988</p>
                 </div>
 
                 <!-- JUDUL -->
-                <h4 style="text-align:center;font-size:15px;font-weight:700;text-decoration:underline;text-transform:uppercase;letter-spacing:0.12em;color:#111;margin:0 0 28px;">LAPORAN HASIL UJIAN AKHIR SISWA</h4>
+                <h4 style="text-align:center;font-size:14px;font-weight:700;text-decoration:underline;text-transform:uppercase;letter-spacing:0.12em;color:#111;margin:0 0 24px;">LAPORAN HASIL UJIAN AKHIR SISWA</h4>
 
                 <!-- DATA SISWA -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;font-size:13px;">
-                    <table style="width:100%;border-collapse:collapse;">
-                        <tr><td style="width:130px;font-weight:600;padding:3px 0;color:#444;">Nama Lengkap</td><td style="width:12px;">:</td><td id="repNama" style="font-weight:700;color:#111;">Nama</td></tr>
-                        <tr><td style="font-weight:600;padding:3px 0;color:#444;">NISN</td><td>:</td><td id="repNisn" style="font-family:monospace;">000000</td></tr>
-                    </table>
-                    <table style="width:100%;border-collapse:collapse;">
-                        <tr><td style="font-weight:600;padding:3px 0;color:#444;">Status Kelulusan</td><td style="width:12px;">:</td><td><span id="repStatus" style="font-weight:700;padding:2px 10px;border-radius:4px;color:white;background:#059669;font-size:12px;">LULUS</span></td></tr>
-                    </table>
-                </div>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;">
+                    <tr><td style="width:160px;font-weight:600;padding:4px 0;color:#444;">Nama Lengkap</td><td style="width:12px;padding:4px 0;">:</td><td id="repNama" style="font-weight:700;color:#111;padding:4px 0;">Nama</td></tr>
+                    <tr><td style="font-weight:600;padding:4px 0;color:#444;">NISN</td><td style="padding:4px 0;">:</td><td id="repNisn" style="font-family:monospace;padding:4px 0;">000000</td></tr>
+                </table>
 
                 <!-- TABEL NILAI -->
-                <table style="width:100%;border-collapse:collapse;border:1px solid #999;margin-bottom:40px;font-size:13px;">
+                <table style="width:100%;border-collapse:collapse;border:1px solid #999;margin-bottom:60px;font-size:13px;">
                     <thead>
-                        <tr style="background:#f3f4f6;">
-                            <th style="border:1px solid #999;padding:10px;text-align:center;width:40px;color:#111;">No</th>
-                            <th style="border:1px solid #999;padding:10px;text-align:left;color:#111;">Mata Pelajaran Ujian</th>
-                            <th style="border:1px solid #999;padding:10px;text-align:center;width:120px;color:#111;">Nilai</th>
+                        <tr style="background:#1e3a8a;">
+                            <th style="border:1px solid #999;padding:10px 12px;text-align:center;width:44px;color:white;font-weight:700;">No</th>
+                            <th style="border:1px solid #999;padding:10px 12px;text-align:left;color:white;font-weight:700;">Mata Pelajaran</th>
+                            <th style="border:1px solid #999;padding:10px 12px;text-align:center;width:130px;color:white;font-weight:700;">Nilai</th>
                         </tr>
                     </thead>
                     <tbody id="bodyRaportCetak"></tbody>
                 </table>
 
                 <!-- TANDA TANGAN -->
-                <div style="display:flex;justify-content:flex-end;margin-top:20px;">
-                    <div style="width:220px;text-align:center;font-size:13px;">
+                <div style="display:flex;justify-content:flex-end;">
+                    <div style="width:230px;text-align:center;font-size:13px;">
                         <p id="rptKeteranganTempatTgl" style="margin:0 0 4px;color:#333;">Pengkol, 27 Mei 2026</p>
-                        <p style="margin:0 0 8px;color:#333;">Kepala Sekolah</p>
-                        <div style="height:80px;position:relative;display:flex;align-items:center;justify-content:center;margin:8px 0;">
-                            <img id="rptImgTtd" style="max-height:70px;max-width:100%;position:absolute;z-index:2;opacity:0.9;display:none;">
-                            <img id="rptImgCap" style="max-height:80px;max-width:100%;position:absolute;left:10px;z-index:1;opacity:0.8;display:none;">
+                        <p style="margin:0 0 6px;color:#333;">Kepala Sekolah</p>
+                        <div style="height:90px;position:relative;display:flex;align-items:center;justify-content:center;margin:6px 0;">
+                            <img id="rptImgTtd" style="max-height:75px;max-width:100%;position:absolute;z-index:2;opacity:0.9;display:none;">
+                            <img id="rptImgCap" style="max-height:85px;max-width:100%;position:absolute;left:10px;z-index:1;opacity:0.8;display:none;">
                         </div>
                         <p id="rptNamaKepsek" style="font-weight:700;text-decoration:underline;color:#111;margin:0 0 2px;">Sri Wahyuni, S.Pd.SD</p>
                         <p id="rptNipKepsek" style="font-size:11px;color:#666;margin:0;">NIP. 19820415 200903 2 005</p>
@@ -495,11 +780,33 @@
 
         // Inisialisasi awal saat web dibuka
         window.onload = function() {
-            // Tampilkan dulu halaman login siswa
-            switchView('siswa-login-view');
-            // Baru isi data identitas (elemen sudah visible)
-            terapkanIdentitasKeTampilan();
+            // Check Firebase status and show banner if configured
+            checkFirebaseStatus();
+            
+            // Load data from Firebase first
+            firebaseLoadData().then(function() {
+                // Tampilkan dulu halaman login siswa
+                switchView('siswa-login-view');
+                // Baru isi data identitas (elemen sudah visible)
+                terapkanIdentitasKeTampilan();
+            });
         };
+        
+        function checkFirebaseStatus() {
+            const savedConfig = localStorage.getItem('firebaseConfig');
+            const banner = document.getElementById('firebaseStatusBanner');
+            
+            if (savedConfig) {
+                try {
+                    const config = JSON.parse(savedConfig);
+                    if (config.apiKey && config.apiKey !== "YOUR_API_KEY_HERE") {
+                        banner.classList.remove('hidden');
+                    }
+                } catch (e) {
+                    console.error('Error parsing Firebase config:', e);
+                }
+            }
+        }
 
         function terapkanIdentitasKeTampilan() {
             document.getElementById('navNamaSekolah').innerText = profilSekolah.namaSekolah;
@@ -584,6 +891,7 @@
             profilSekolah.namaKepsek = document.getElementById('cfgNamaKepsek').value.trim();
             profilSekolah.nipKepsek = document.getElementById('cfgNipKepsek').value.trim();
 
+            firebaseSaveProfil();
             localStorage.setItem('sd_pengkol_profil', JSON.stringify(profilSekolah));
             terapkanIdentitasKeTampilan();
             showToast('Identitas sekolah berhasil diperbarui!', 'success');
@@ -658,17 +966,6 @@
                     '<td colspan="2" style="border:1px solid #999;padding:9px;text-align:right;font-weight:700;color:#374151;">Rata-Rata Capaian Nilai :</td>' +
                     '<td style="border:1px solid #999;padding:9px;text-align:center;font-weight:900;color:#1d4ed8;font-size:16px;">' + rata.toFixed(1) + '</td>';
                 tbodyRaport.appendChild(trRata);
-                
-                const statusElement = document.getElementById('repStatus');
-                if(rata >= 75 && dataMapel.length > 0) {
-                    statusElement.innerText = "LULUS";
-                    statusElement.style.background = '#059669';
-                    statusElement.style.color = 'white';
-                } else {
-                    statusElement.innerText = "TIDAK LULUS";
-                    statusElement.style.background = '#dc2626';
-                    statusElement.style.color = 'white';
-                }
 
                 switchView('siswa-hasil-view');
             } else {
@@ -703,6 +1000,7 @@
         function tambahMapelKosong() {
             const idBaru = 'mp_' + Date.now();
             dataMapel.push({ id: idBaru, nama: "Mata Pelajaran Baru" });
+            firebaseSaveMapel();
             localStorage.setItem('sd_pengkol_mapel', JSON.stringify(dataMapel));
             renderManajemenMapel();
             renderTabelGuru();
@@ -714,6 +1012,7 @@
             const idx = dataMapel.findIndex(m => m.id === id);
             if(idx > -1) {
                 dataMapel[idx].nama = namaBaru;
+                firebaseSaveMapel();
                 localStorage.setItem('sd_pengkol_mapel', JSON.stringify(dataMapel));
                 renderManajemenMapel();
                 renderTabelGuru();
@@ -724,6 +1023,7 @@
         function hapusMapel(id) {
             if(confirm('Menghapus pelajaran ini akan menghapus kolom nilainya di seluruh siswa. Lanjutkan?')) {
                 dataMapel = dataMapel.filter(m => m.id !== id);
+                firebaseSaveMapel();
                 localStorage.setItem('sd_pengkol_mapel', JSON.stringify(dataMapel));
                 renderManajemenMapel();
                 renderTabelGuru();
@@ -797,6 +1097,7 @@
             const idx = dataSiswa.findIndex(s => s.id === id);
             if(idx > -1) {
                 dataSiswa[idx] = { id, nama: namaVal, nisn: nisnVal, nilai: objekNilaiBaru };
+                firebaseSaveSiswa();
                 localStorage.setItem('sd_pengkol_database', JSON.stringify(dataSiswa));
                 showToast('Data ' + namaVal + ' berhasil disimpan.', 'success');
                 renderTabelGuru();
@@ -806,6 +1107,7 @@
         function hapusBarisSiswa(id) {
             if(confirm('Hapus baris data siswa ini?')) {
                 dataSiswa = dataSiswa.filter(s => s.id !== id);
+                firebaseSaveSiswa();
                 localStorage.setItem('sd_pengkol_database', JSON.stringify(dataSiswa));
                 renderTabelGuru();
                 showToast('Data siswa dihapus.', 'info');
@@ -837,6 +1139,7 @@
                 document.getElementById('pwdKonfirmasi').value = '';
                 return;
             }
+            firebaseSavePassword(baru);
             localStorage.setItem('sd_pengkol_pwd', baru);
             document.getElementById('pwdLama').value = '';
             document.getElementById('pwdBaru').value = '';
@@ -869,58 +1172,87 @@
             var btnPDF = document.getElementById('btnPDF');
             var btnJPG = document.getElementById('btnJPG');
 
-            // Disable tombol saat proses
             btnPDF.disabled = true; btnPDF.innerText = '⏳ Memproses...';
             btnJPG.disabled = true;
 
+            // A4 = 210mm x 297mm, margin 15mm semua sisi
             var opsi = {
-                margin:      [10, 10, 10, 10],
+                margin:      [15, 15, 15, 15],
                 filename:    'Raport_' + namaSiswa.replace(/\s+/g, '_') + '.pdf',
-                image:       { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
-                jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                image:       { type: 'jpeg', quality: 0.99 },
+                html2canvas: {
+                    scale: 3,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff',
+                    width: 794,
+                    scrollX: 0,
+                    scrollY: 0
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
             html2pdf().set(opsi).from(element).save().then(function() {
                 btnPDF.disabled = false; btnPDF.innerHTML = '📄 Unduh PDF';
                 btnJPG.disabled = false;
                 showToast('PDF berhasil diunduh!', 'success');
-            }).catch(function(err) {
+            }).catch(function() {
                 btnPDF.disabled = false; btnPDF.innerHTML = '📄 Unduh PDF';
                 btnJPG.disabled = false;
                 showToast('Gagal membuat PDF. Coba lagi.', 'error');
             });
         }
 
-        // ── DOWNLOAD JPG ──
+        // ── DOWNLOAD JPG (ukuran A4 proporsional) ──
         function downloadJPG() {
             var element = document.getElementById('raport-cetak');
             var namaSiswa = document.getElementById('repNama').innerText.trim() || 'Siswa';
             var btnPDF = document.getElementById('btnPDF');
             var btnJPG = document.getElementById('btnJPG');
 
-            // Disable tombol saat proses
             btnJPG.disabled = true; btnJPG.innerText = '⏳ Memproses...';
             btnPDF.disabled = true;
 
+            // Render elemen dengan lebar tetap 794px (A4 di 96dpi)
             html2canvas(element, {
-                scale: 2,
+                scale: 3,
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
-                windowWidth: element.scrollWidth,
-                windowHeight: element.scrollHeight
+                width: 794,
+                height: 1123,
+                windowWidth: 794,
+                scrollX: 0,
+                scrollY: 0
             }).then(function(canvas) {
+                // Buat canvas A4 baru dengan rasio tepat
+                var a4W = 794 * 3;   // 2382px
+                var a4H = 1123 * 3;  // 3369px
+                var finalCanvas = document.createElement('canvas');
+                finalCanvas.width  = a4W;
+                finalCanvas.height = a4H;
+                var ctx = finalCanvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, a4W, a4H);
+                // Gambar hasil render ke canvas A4, scale agar pas
+                var scale = Math.min(a4W / canvas.width, a4H / canvas.height);
+                var drawW = canvas.width  * scale;
+                var drawH = canvas.height * scale;
+                var offsetX = (a4W - drawW) / 2;
+                var offsetY = 0;
+                ctx.drawImage(canvas, offsetX, offsetY, drawW, drawH);
+
                 var link = document.createElement('a');
                 link.download = 'Raport_' + namaSiswa.replace(/\s+/g, '_') + '.jpg';
-                link.href = canvas.toDataURL('image/jpeg', 0.98);
+                link.href = finalCanvas.toDataURL('image/jpeg', 0.98);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+
                 btnJPG.disabled = false; btnJPG.innerHTML = '🖼️ Unduh Gambar (JPG)';
                 btnPDF.disabled = false;
-                showToast('Gambar berhasil diunduh!', 'success');
-            }).catch(function(err) {
+                showToast('Gambar A4 berhasil diunduh!', 'success');
+            }).catch(function() {
                 btnJPG.disabled = false; btnJPG.innerHTML = '🖼️ Unduh Gambar (JPG)';
                 btnPDF.disabled = false;
                 showToast('Gagal membuat gambar. Coba lagi.', 'error');
