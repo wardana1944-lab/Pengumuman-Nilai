@@ -101,6 +101,65 @@
         #fb-status-bar { display:none;background:#ecfdf5;border-bottom:2px solid #6ee7b7;padding:6px 24px;font-size:12px;font-weight:700;color:#065f46;text-align:center; }
         #fb-status-bar.show { display:block; }
         #fb-status-bar.error { background:#fff1f2;border-color:#fca5a5;color:#991b1b; }
+
+        /* ══ RESPONSIVE MOBILE ══ */
+
+        /* Wrapper raport: scroll horizontal di HP, tetap A4 asli untuk download */
+        .raport-scroll-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Skala raport agar muat di layar HP tanpa scroll */
+        @media (max-width: 860px) {
+            #raport-cetak {
+                transform-origin: top left;
+                transform: scale(var(--raport-scale, 1));
+                margin-bottom: calc((var(--raport-scale, 1) - 1) * 1123px) !important;
+            }
+            .raport-scroll-wrapper {
+                overflow-x: visible;
+            }
+        }
+
+        /* Navbar: perkecil teks brand di HP */
+        @media (max-width: 480px) {
+            .navbar-brand-text { font-size: 12px; }
+            .app-navbar { padding: 0 14px; }
+            #guru-corner-btn { padding: 6px 10px; font-size: 10px; letter-spacing: 0.04em; }
+            #navHomeBtn { padding: 6px 10px; font-size: 10px; }
+        }
+
+        /* Login card: kurangi padding di HP */
+        @media (max-width: 480px) {
+            #siswa-login-view .modern-card { padding: 24px 20px !important; }
+            #siswa-login-view { padding-top: 20px !important; }
+        }
+
+        /* Ganti password: stack vertikal di HP */
+        @media (max-width: 640px) {
+            .pwd-grid { grid-template-columns: 1fr !important; }
+        }
+
+        /* Tombol download: stack vertikal di HP */
+        @media (max-width: 480px) {
+            .download-btn-group { flex-direction: column !important; }
+            .download-btn-group button { width: 100%; justify-content: center; }
+            .btn-back { width: 100%; justify-content: center; }
+            #siswa-hasil-view > div:first-child { flex-direction: column !important; }
+        }
+
+        /* Dashboard: kurangi padding di HP */
+        @media (max-width: 640px) {
+            #admin-dashboard-view { padding: 16px !important; }
+            .max-w-5xl { padding: 8px !important; margin-top: 12px !important; }
+        }
+
+        /* Toast: full width di HP */
+        @media (max-width: 480px) {
+            #toast-container { left: 12px; right: 12px; top: 12px; }
+            .toast { min-width: unset; max-width: 100%; }
+        }
     </style>
 </head>
 <body style="background:#f0f4f8;min-height:100vh;">
@@ -243,7 +302,7 @@
             <!-- 3. GANTI PASSWORD -->
             <div class="pwd-section">
                 <h3 class="font-bold text-base uppercase tracking-wide mb-4" style="color:#92400e;">🔑 Ganti Password Guru</h3>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;">
+                <div class="pwd-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;">
                     <div>
                         <label class="field-label" style="color:#92400e;">Password Lama</label>
                         <input type="password" id="pwdLama" placeholder="Password saat ini" class="modern-input" style="background:white;">
@@ -281,19 +340,20 @@
         <div id="siswa-hasil-view" class="view hidden" style="padding-bottom:40px;">
             <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;padding:8px 0 20px;">
                 <button onclick="logout()" class="btn-back">← Keluar</button>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <div class="download-btn-group" style="display:flex;gap:10px;flex-wrap:wrap;">
                     <button id="btnPDF" onclick="downloadPDF()" class="btn-download-pdf">📄 Unduh PDF</button>
                     <button id="btnJPG" onclick="downloadJPG()" class="btn-download-jpg">🖼️ Unduh Gambar (JPG)</button>
                 </div>
             </div>
 
+            <div class="raport-scroll-wrapper">
             <div id="raport-cetak" style="background:white;width:794px;min-height:1123px;padding:60px 70px;margin:0 auto;border-top:14px solid #1e3a8a;box-shadow:0 8px 40px rgba(0,0,0,0.12);font-family:'Times New Roman',serif;box-sizing:border-box;">
                 <div style="text-align:center;border-bottom:4px solid #111;padding-bottom:16px;margin-bottom:24px;">
-                    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#111;margin:0 0 4px;">PEMERINTAH KABUPATEN KULON PROGO</h2>
+                    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#111;margin:0 0 4px;">PEMERINTAH KABUPATEN / KOTA DINAS PENDIDIKAN</h2>
                     <h3 id="rptNamaSekolah" style="font-size:20px;font-weight:900;text-transform:uppercase;color:#1a1a1a;margin:0 0 4px;">SD NEGERI PENGKOL</h3>
                     <p id="rptAlamatSekolah" style="font-size:11px;color:#555;font-style:italic;margin:0;">Alamat: Jl. Raya Pengkol No. 12, Jawa Tengah</p>
                 </div>
-                <h4 style="text-align:center;font-size:14px;font-weight:700;text-decoration:underline;text-transform:uppercase;letter-spacing:0.12em;color:#111;margin:0 0 24px;">LAPORAN HASIL TES KEMAMPUAN AKADEMIK (TKA)</h4>
+                <h4 style="text-align:center;font-size:14px;font-weight:700;text-decoration:underline;text-transform:uppercase;letter-spacing:0.12em;color:#111;margin:0 0 24px;">LAPORAN HASIL UJIAN AKHIR SISWA</h4>
                 <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;">
                     <tr><td style="width:160px;font-weight:600;padding:4px 0;color:#444;">Nama Lengkap</td><td style="width:12px;padding:4px 0;">:</td><td id="repNama" style="font-weight:700;color:#111;padding:4px 0;">-</td></tr>
                     <tr><td style="font-weight:600;padding:4px 0;color:#444;">NISN</td><td style="padding:4px 0;">:</td><td id="repNisn" style="font-family:monospace;padding:4px 0;">-</td></tr>
@@ -321,6 +381,7 @@
                     </div>
                 </div>
             </div>
+            </div><!-- end raport-scroll-wrapper -->
         </div>
 
     </div><!-- end max-w-5xl -->
@@ -419,6 +480,7 @@ function switchView(viewId) {
     } else if(viewId === 'siswa-hasil-view'){
         homeBtn.classList.add('show');
         if(guruBtn) guruBtn.style.display='none';
+        setTimeout(hitungSkalaRaport, 50);
     }
 }
 </script>
@@ -739,6 +801,30 @@ function downloadJPG() {
         showToast('Gagal membuat gambar. Coba lagi.','error');
     });
 }
+
+// ══════════════════════════════════════════════
+//  RESPONSIVE RAPORT SCALE
+// ══════════════════════════════════════════════
+function hitungSkalaRaport() {
+    const raport = document.getElementById('raport-cetak');
+    if (!raport) return;
+    const wrapper = raport.parentElement;
+    const availW = wrapper.clientWidth || window.innerWidth - 32;
+    const raportW = 794;
+    if (availW < raportW) {
+        const scale = availW / raportW;
+        raport.style.setProperty('--raport-scale', scale);
+        raport.style.transform = 'scale(' + scale + ')';
+        raport.style.transformOrigin = 'top left';
+        raport.style.marginBottom = ((scale - 1) * 1123) + 'px';
+        wrapper.style.height = (1123 * scale) + 'px';
+    } else {
+        raport.style.transform = '';
+        raport.style.marginBottom = '';
+        wrapper.style.height = '';
+    }
+}
+window.addEventListener('resize', hitungSkalaRaport);
 
 // ══════════════════════════════════════════════
 //  TOAST NOTIFICATION
