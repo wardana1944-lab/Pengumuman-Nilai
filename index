@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Pengumuman Hasil Ujian Sekolah</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Firebase SDK (compat version - works without module system) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script>
+        // ── FIREBASE CONFIG (langsung aktif, tidak perlu setup manual) ──
+        const firebaseConfig = {
+            apiKey: "AIzaSyDr_t5rRp7IytAE7XONpK3Po1nLrBjnXT0",
+            authDomain: "pengumuman-nilai.firebaseapp.com",
+            databaseURL: "https://pengumuman-nilai-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "pengumuman-nilai",
+            storageBucket: "pengumuman-nilai.appspot.com",
+            messagingSenderId: "344864a8",
+            appId: "1:344864a8:web:pengumuman-nilai"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // ── FIREBASE HELPERS ──
+        async function fbLoad(path) {
+            try {
+                const snap = await db.ref(path).get();
+                return snap.exists() ? snap.val() : null;
+            } catch(e) { console.warn('fbLoad error', path, e); return null; }
+        }
+        async function fbSave(path, data) {
+            try { await db.ref(path).set(data); } catch(e) { console.warn('fbSave error', path, e); }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+        .app-navbar {
+            background: linear-gradient(135deg, #1e3a5f 0%, #1a3354 100%);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.18);
+            padding: 0 24px; height: 64px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .navbar-brand { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .navbar-brand-icon { width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:18px; }
+        .navbar-brand-text { font-size:15px;font-weight:800;color:white;letter-spacing:-0.01em; }
+        .navbar-right { display:flex;align-items:center;gap:10px; }
+        #navHomeBtn { display:none;align-items:center;gap:6px;padding:7px 14px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:white;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.2s;text-transform:uppercase;letter-spacing:0.05em; }
+        #navHomeBtn:hover { background:rgba(255,255,255,0.2); }
+        #navHomeBtn.show { display:flex; }
+        #guru-corner-btn { display:flex;align-items:center;gap:7px;padding:7px 16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.22);border-radius:100px;color:rgba(255,255,255,0.9);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;transition:all 0.2s; }
+        #guru-corner-btn:hover { background:rgba(255,255,255,0.18);color:white;border-color:rgba(255,255,255,0.4); }
+        #guru-modal-overlay { display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:24px; }
+        #guru-modal-overlay.show { display:flex; }
+        .guru-modal { background:white;border-radius:20px;width:100%;max-width:380px;box-shadow:0 25px 60px rgba(0,0,0,0.25);overflow:hidden;animation:popIn 0.25s ease; }
+        @keyframes popIn { from{opacity:0;transform:scale(0.94) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        .guru-modal-head { background:linear-gradient(135deg,#064e3b,#065f46);padding:24px 28px 20px;display:flex;align-items:flex-start;justify-content:space-between; }
+        .guru-modal-head h3 { font-size:18px;font-weight:900;color:white;margin-bottom:3px; }
+        .guru-modal-head p { font-size:12px;color:rgba(255,255,255,0.65); }
+        .modal-close-btn { width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,0.15);border:none;color:white;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.2s;line-height:1; }
+        .modal-close-btn:hover { background:rgba(255,255,255,0.3); }
+        .guru-modal-body { padding:24px 28px 28px; }
+        .modern-card { background:white;border-radius:20px;box-shadow:0 4px 24px rgba(0,0,0,0.07);border:1px solid rgba(0,0,0,0.06);transition:box-shadow 0.3s,transform 0.3s; }
+        .modern-card:hover { box-shadow:0 12px 40px rgba(0,0,0,0.12);transform:translateY(-3px); }
+        .modern-input { width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-weight:500;color:#1e293b;background:#f8fafc;transition:all 0.2s;outline:none; }
+        .modern-input:focus { border-color:#3b82f6;background:white;box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
+        .modern-input::placeholder { color:#94a3b8; }
+        .modern-input.error { border-color:#f87171;background:#fff1f2; }
+        .field-label { display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;margin-bottom:6px; }
+        .btn-blue { width:100%;padding:12px 20px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;font-weight:800;font-size:14px;border:none;border-radius:12px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 14px rgba(37,99,235,0.3); }
+        .btn-blue:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(37,99,235,0.45); }
+        .btn-green { width:100%;padding:12px 20px;background:linear-gradient(135deg,#059669,#047857);color:white;font-weight:800;font-size:14px;border:none;border-radius:12px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 14px rgba(5,150,105,0.3); }
+        .btn-green:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(5,150,105,0.45); }
+        .view { animation:fadeSlide 0.3s ease; }
+        @keyframes fadeSlide { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        #raport-cetak { font-family:'Times New Roman',serif; }
+        #toast-container { position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:10px;pointer-events:none; }
+        .toast { display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:14px;min-width:280px;max-width:360px;box-shadow:0 8px 30px rgba(0,0,0,0.15);pointer-events:auto;animation:toastIn 0.35s cubic-bezier(0.34,1.56,0.64,1);font-size:13px;font-weight:600; }
+        .toast.hide { animation:toastOut 0.3s ease forwards; }
+        .toast-success { background:#f0fdf4;border:1.5px solid #86efac;color:#166534; }
+        .toast-error { background:#fff1f2;border:1.5px solid #fca5a5;color:#991b1b; }
+        .toast-info { background:#eff6ff;border:1.5px solid #93c5fd;color:#1e40af; }
+        .toast-icon { font-size:18px;flex-shrink:0; }
+        .toast-msg { flex:1;line-height:1.4; }
+        .toast-close { background:none;border:none;cursor:pointer;font-size:16px;color:inherit;opacity:0.5;padding:0 2px;flex-shrink:0;line-height:1; }
+        .toast-close:hover { opacity:1; }
+        @keyframes toastIn { from{opacity:0;transform:translateX(40px) scale(0.9)} to{opacity:1;transform:translateX(0) scale(1)} }
+        @keyframes toastOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(40px)} }
+        .pwd-section { background:#fffbeb;border:1.5px solid #fde68a;border-radius:16px;padding:20px 24px; }
+        .btn-download-pdf { display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;font-weight:800;font-size:13px;border:none;border-radius:12px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 14px rgba(220,38,38,0.3); }
+        .btn-download-pdf:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(220,38,38,0.45); }
+        .btn-download-jpg { display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:linear-gradient(135deg,#0d9488,#0f766e);color:white;font-weight:800;font-size:13px;border:none;border-radius:12px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 14px rgba(13,148,136,0.3); }
+        .btn-download-jpg:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(13,148,136,0.45); }
+        .btn-back { display:inline-flex;align-items:center;gap:8px;padding:11px 20px;background:white;color:#475569;border:1.5px solid #e2e8f0;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+        .btn-back:hover { background:#f8fafc;border-color:#cbd5e1; }
+        #fb-status-bar { display:none;background:#ecfdf5;border-bottom:2px solid #6ee7b7;padding:6px 24px;font-size:12px;font-weight:700;color:#065f46;text-align:center; }
+        #fb-status-bar.show { display:block; }
+        #fb-status-bar.error { background:#fff1f2;border-color:#fca5a5;color:#991b1b; }
+    </style>
+</head>
+<body style="background:#f0f4f8;min-height:100vh;">
+
+    <!-- Firebase status bar -->
+    <div id="fb-status-bar">🔥 Firebase Terhubung — Data tersinkronisasi secara real-time</div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container"></div>
+
+    <nav class="app-navbar">
+        <div class="navbar-brand" onclick="switchView('siswa-login-view')">
+            <div class="navbar-brand-icon">🏫</div>
+            <span class="navbar-brand-text" id="navNamaSekolah">SD Negeri Pengkol</span>
+        </div>
+        <div class="navbar-right">
+            <button id="navHomeBtn" onclick="switchView('siswa-login-view')">← Beranda</button>
+            <button id="guru-corner-btn" onclick="openGuruModal()">🔐 Login Guru</button>
+        </div>
+    </nav>
+
+    <!-- MODAL LOGIN GURU -->
+    <div id="guru-modal-overlay" onclick="handleOverlayClick(event)">
+        <div class="guru-modal">
+            <div class="guru-modal-head">
+                <div>
+                    <h3>Akses Guru / Admin</h3>
+                    <p>Masukkan password administrator sekolah</p>
+                </div>
+                <button class="modal-close-btn" onclick="closeGuruModal()">×</button>
+            </div>
+            <div class="guru-modal-body">
+                <label class="field-label">Password Guru / Admin</label>
+                <input type="password" id="adminPassword" placeholder="Masukkan password"
+                    class="modern-input" style="margin-bottom:16px;"
+                    onkeyup="if(event.key==='Enter') loginAdmin()">
+                <button onclick="loginAdmin()" class="btn-green">Masuk ke Ruang Guru</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto p-4 mt-8">
+
+        <!-- ══ HALAMAN LOGIN SISWA ══ -->
+        <div id="siswa-login-view" class="view" style="max-width:440px;margin:0 auto;padding-top:40px;">
+            <div style="text-align:center;margin-bottom:28px;">
+                <div style="width:56px;height:56px;background:linear-gradient(135deg,#dbeafe,#bfdbfe);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px;">🎓</div>
+                <h2 style="font-size:22px;font-weight:900;color:#0f172a;margin-bottom:6px;" id="titleLanding">Portal Nilai Siswa</h2>
+                <p style="font-size:13px;color:#64748b;">Masukkan data sesuai yang diisikan oleh Guru</p>
+            </div>
+            <div class="modern-card" style="padding:32px 36px;">
+                <div style="margin-bottom:18px;">
+                    <label class="field-label">Nama Lengkap Siswa</label>
+                    <input type="text" id="siswaNama" placeholder="Nama lengkap Anda"
+                        class="modern-input" onkeyup="if(event.key==='Enter') loginSiswa()">
+                </div>
+                <div style="margin-bottom:24px;">
+                    <label class="field-label">NISN (Sebagai Password)</label>
+                    <input type="password" id="siswaNisn" placeholder="Nomor NISN Anda"
+                        class="modern-input" onkeyup="if(event.key==='Enter') loginSiswa()">
+                </div>
+                <button onclick="loginSiswa()" class="btn-blue">Lihat Hasil Nilai →</button>
+            </div>
+        </div>
+
+        <!-- ══ DASHBOARD GURU ══ -->
+        <div id="admin-dashboard-view" class="view bg-white p-6 rounded-2xl shadow-md hidden space-y-8">
+
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Dashboard Pengelolaan Nilai & Instansi</h2>
+                    <p class="text-sm text-gray-500">Kelola identitas sekolah, data pelajaran, dan input nilai.</p>
+                </div>
+                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm transition font-medium">Log Out</button>
+            </div>
+
+            <!-- 1. IDENTITAS SEKOLAH -->
+            <div class="bg-gray-50 p-5 rounded-xl border border-gray-200 space-y-4">
+                <h3 class="font-bold text-base text-gray-800 uppercase tracking-wide border-b pb-2">1. Pengaturan Dokumen & Identitas Sekolah</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block font-medium mb-1 text-gray-600">Nama Sekolah</label>
+                            <input type="text" id="cfgNamaSekolah" class="w-full border rounded-lg px-3 py-2 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium mb-1 text-gray-600">Alamat / Kontak Sekolah</label>
+                            <input type="text" id="cfgAlamatSekolah" class="w-full border rounded-lg px-3 py-2 bg-white">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-medium mb-1 text-gray-600">Tempat Penerbitan</label>
+                                <input type="text" id="cfgKotaPenerbit" placeholder="Contoh: Pengkol" class="w-full border rounded-lg px-3 py-1.5 bg-white">
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-1 text-gray-600">Tanggal Kelulusan</label>
+                                <input type="text" id="cfgTanggalLaporan" placeholder="Contoh: 27 Mei 2026" class="w-full border rounded-lg px-3 py-1.5 bg-white">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-medium mb-1 text-gray-600">Nama Kepala Sekolah</label>
+                                <input type="text" id="cfgNamaKepsek" class="w-full border rounded-lg px-3 py-2 bg-white">
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-1 text-gray-600">NIP Kepala Sekolah</label>
+                                <input type="text" id="cfgNipKepsek" class="w-full border rounded-lg px-3 py-2 bg-white">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 pt-2">
+                            <div class="p-3 bg-white border rounded-lg text-center">
+                                <label class="block font-semibold text-xs text-blue-700 uppercase mb-2">📁 Upload TTD Kepsek</label>
+                                <input type="file" id="fileTtd" accept="image/*" onchange="prosesGambar(this,'ttd')" class="hidden">
+                                <button onclick="document.getElementById('fileTtd').click()" class="bg-gray-100 hover:bg-gray-200 text-xs px-2 py-1 rounded border mb-2">Pilih File</button>
+                                <div class="h-12 flex items-center justify-center border border-dashed rounded bg-gray-50"><img id="previewTtd" class="max-h-full hidden"></div>
+                            </div>
+                            <div class="p-3 bg-white border rounded-lg text-center">
+                                <label class="block font-semibold text-xs text-teal-700 uppercase mb-2">📁 Upload Cap Stempel</label>
+                                <input type="file" id="fileCap" accept="image/*" onchange="prosesGambar(this,'cap')" class="hidden">
+                                <button onclick="document.getElementById('fileCap').click()" class="bg-gray-100 hover:bg-gray-200 text-xs px-2 py-1 rounded border mb-2">Pilih File</button>
+                                <div class="h-12 flex items-center justify-center border border-dashed rounded bg-gray-50"><img id="previewCap" class="max-h-full hidden"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="simpanIdentitasSekolah()" class="bg-gray-800 hover:bg-gray-900 text-white font-medium px-5 py-2 rounded-lg transition text-sm shadow">Perbarui Info Sekolah</button>
+            </div>
+
+            <!-- 2. MANAJEMEN MAPEL -->
+            <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-base text-emerald-800 uppercase tracking-wide">2. Manajemen Mata Pelajaran</h3>
+                    <button onclick="tambahMapelKosong()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-md text-xs font-semibold shadow-sm transition">+ Tambah Mapel Baru</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3" id="containerMapel"></div>
+            </div>
+
+            <!-- 3. GANTI PASSWORD -->
+            <div class="pwd-section">
+                <h3 class="font-bold text-base uppercase tracking-wide mb-4" style="color:#92400e;">🔑 Ganti Password Guru</h3>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;">
+                    <div>
+                        <label class="field-label" style="color:#92400e;">Password Lama</label>
+                        <input type="password" id="pwdLama" placeholder="Password saat ini" class="modern-input" style="background:white;">
+                    </div>
+                    <div>
+                        <label class="field-label" style="color:#92400e;">Password Baru</label>
+                        <input type="password" id="pwdBaru" placeholder="Password baru" class="modern-input" style="background:white;">
+                    </div>
+                    <div>
+                        <label class="field-label" style="color:#92400e;">Konfirmasi Password Baru</label>
+                        <input type="password" id="pwdKonfirmasi" placeholder="Ulangi password baru" class="modern-input" style="background:white;">
+                    </div>
+                </div>
+                <button onclick="gantiPassword()" style="margin-top:14px;padding:10px 24px;background:linear-gradient(135deg,#d97706,#b45309);color:white;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(180,83,9,0.3);">Simpan Password Baru</button>
+            </div>
+
+            <!-- 4. INPUT NILAI SISWA -->
+            <div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-base text-blue-800 uppercase tracking-wide">4. Input Nilai & Database Siswa</h3>
+                    <button onclick="tambahBarisKosong()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">+ Tambah Siswa Baru</button>
+                </div>
+                <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                    <table class="w-full text-left border-collapse bg-white">
+                        <thead>
+                            <tr class="bg-gray-100 border-b text-gray-700 text-xs uppercase tracking-wider font-semibold" id="headTabelSiswa"></tr>
+                        </thead>
+                        <tbody id="tabelSiswaInput" class="text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ HALAMAN HASIL NILAI SISWA ══ -->
+        <div id="siswa-hasil-view" class="view hidden" style="padding-bottom:40px;">
+            <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;padding:8px 0 20px;">
+                <button onclick="logout()" class="btn-back">← Keluar</button>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button id="btnPDF" onclick="downloadPDF()" class="btn-download-pdf">📄 Unduh PDF</button>
+                    <button id="btnJPG" onclick="downloadJPG()" class="btn-download-jpg">🖼️ Unduh Gambar (JPG)</button>
+                </div>
+            </div>
+
+            <div id="raport-cetak" style="background:white;width:794px;min-height:1123px;padding:60px 70px;margin:0 auto;border-top:14px solid #1e3a8a;box-shadow:0 8px 40px rgba(0,0,0,0.12);font-family:'Times New Roman',serif;box-sizing:border-box;">
+                <div style="text-align:center;border-bottom:4px solid #111;padding-bottom:16px;margin-bottom:24px;">
+                    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#111;margin:0 0 4px;">PEMERINTAH KABUPATEN / KOTA DINAS PENDIDIKAN</h2>
+                    <h3 id="rptNamaSekolah" style="font-size:20px;font-weight:900;text-transform:uppercase;color:#1a1a1a;margin:0 0 4px;">SD NEGERI PENGKOL</h3>
+                    <p id="rptAlamatSekolah" style="font-size:11px;color:#555;font-style:italic;margin:0;">Alamat: Jl. Raya Pengkol No. 12, Jawa Tengah</p>
+                </div>
+                <h4 style="text-align:center;font-size:14px;font-weight:700;text-decoration:underline;text-transform:uppercase;letter-spacing:0.12em;color:#111;margin:0 0 24px;">LAPORAN HASIL UJIAN AKHIR SISWA</h4>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;">
+                    <tr><td style="width:160px;font-weight:600;padding:4px 0;color:#444;">Nama Lengkap</td><td style="width:12px;padding:4px 0;">:</td><td id="repNama" style="font-weight:700;color:#111;padding:4px 0;">-</td></tr>
+                    <tr><td style="font-weight:600;padding:4px 0;color:#444;">NISN</td><td style="padding:4px 0;">:</td><td id="repNisn" style="font-family:monospace;padding:4px 0;">-</td></tr>
+                </table>
+                <table style="width:100%;border-collapse:collapse;border:1px solid #999;margin-bottom:60px;font-size:13px;">
+                    <thead>
+                        <tr style="background:#1e3a8a;">
+                            <th style="border:1px solid #999;padding:10px 12px;text-align:center;width:44px;color:white;font-weight:700;">No</th>
+                            <th style="border:1px solid #999;padding:10px 12px;text-align:left;color:white;font-weight:700;">Mata Pelajaran</th>
+                            <th style="border:1px solid #999;padding:10px 12px;text-align:center;width:130px;color:white;font-weight:700;">Nilai</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bodyRaportCetak"></tbody>
+                </table>
+                <div style="display:flex;justify-content:flex-end;">
+                    <div style="width:230px;text-align:center;font-size:13px;">
+                        <p id="rptKeteranganTempatTgl" style="margin:0 0 4px;color:#333;">Pengkol, 27 Mei 2026</p>
+                        <p style="margin:0 0 6px;color:#333;">Kepala Sekolah</p>
+                        <div style="height:90px;position:relative;display:flex;align-items:center;justify-content:center;margin:6px 0;">
+                            <img id="rptImgTtd" style="max-height:75px;max-width:100%;position:absolute;z-index:2;opacity:0.9;display:none;">
+                            <img id="rptImgCap" style="max-height:85px;max-width:100%;position:absolute;left:10px;z-index:1;opacity:0.8;display:none;">
+                        </div>
+                        <p id="rptNamaKepsek" style="font-weight:700;text-decoration:underline;color:#111;margin:0 0 2px;">Sri Wahyuni, S.Pd.SD</p>
+                        <p id="rptNipKepsek" style="font-size:11px;color:#666;margin:0;">NIP. 19820415 200903 2 005</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end max-w-5xl -->
+
+<script>
+// ══════════════════════════════════════════════
+//  DATA (default — akan ditimpa Firebase)
+// ══════════════════════════════════════════════
+let profilSekolah = {
+    namaSekolah: "SD NEGERI PENGKOL",
+    alamatSekolah: "Alamat: Jl. Raya Pengkol No. 12, Jawa Tengah | Telp: (021) 555-9988",
+    kotaPenerbit: "Pengkol",
+    tanggalLaporan: "27 Mei 2026",
+    namaKepsek: "Sri Wahyuni, S.Pd.SD",
+    nipKepsek: "NIP. 19820415 200903 2 005",
+    imgTtd: "", imgCap: ""
+};
+let dataMapel = [
+    { id:"math", nama:"Matematika" },
+    { id:"indo", nama:"Bahasa Indonesia" },
+    { id:"ing",  nama:"Bahasa Inggris" },
+    { id:"ipa",  nama:"Ilmu Pengetahuan Alam (IPA)" }
+];
+let dataSiswa = [
+    { id:1, nama:"Budi Santoso", nisn:"12345678", nilai:{ math:85, indo:90, ing:78, ipa:82 } }
+];
+
+// ══════════════════════════════════════════════
+//  INISIALISASI — load Firebase lalu tampilkan
+// ══════════════════════════════════════════════
+window.onload = async function() {
+    await loadSemuaDataDariFirebase();
+    switchView('siswa-login-view');
+    terapkanIdentitasKeTampilan();
+};
+
+async function loadSemuaDataDariFirebase() {
+    try {
+        const [profil, mapel, siswa, pwd] = await Promise.all([
+            fbLoad('profilSekolah'),
+            fbLoad('dataMapel'),
+            fbLoad('dataSiswa'),
+            fbLoad('adminPassword')
+        ]);
+        if (profil) profilSekolah = profil;
+        if (mapel)  dataMapel    = mapel;
+        if (siswa)  dataSiswa    = siswa;
+        if (pwd)    localStorage.setItem('sd_pengkol_pwd', pwd);
+
+        // Tampilkan status bar Firebase berhasil
+        const bar = document.getElementById('fb-status-bar');
+        bar.classList.add('show');
+        console.log('✅ Firebase data loaded');
+    } catch(e) {
+        console.error('Firebase load error:', e);
+        // Fallback ke localStorage
+        profilSekolah = JSON.parse(localStorage.getItem('sd_pengkol_profil')) || profilSekolah;
+        dataMapel     = JSON.parse(localStorage.getItem('sd_pengkol_mapel'))   || dataMapel;
+        dataSiswa     = JSON.parse(localStorage.getItem('sd_pengkol_database'))|| dataSiswa;
+        const bar = document.getElementById('fb-status-bar');
+        bar.textContent = '⚠️ Firebase tidak terhubung — menggunakan data lokal';
+        bar.classList.add('show','error');
+    }
+}
+
+// ══════════════════════════════════════════════
+//  TAMPILAN & NAVIGASI
+// ══════════════════════════════════════════════
+function terapkanIdentitasKeTampilan() {
+    document.getElementById('navNamaSekolah').innerText = profilSekolah.namaSekolah;
+    const t = document.getElementById('titleLanding');
+    if(t) t.innerText = 'Portal Nilai ' + profilSekolah.namaSekolah;
+    document.getElementById('cfgNamaSekolah').value    = profilSekolah.namaSekolah;
+    document.getElementById('cfgAlamatSekolah').value  = profilSekolah.alamatSekolah;
+    document.getElementById('cfgKotaPenerbit').value   = profilSekolah.kotaPenerbit;
+    document.getElementById('cfgTanggalLaporan').value = profilSekolah.tanggalLaporan;
+    document.getElementById('cfgNamaKepsek').value     = profilSekolah.namaKepsek;
+    document.getElementById('cfgNipKepsek').value      = profilSekolah.nipKepsek;
+    if(profilSekolah.imgTtd){ document.getElementById('previewTtd').src=profilSekolah.imgTtd; document.getElementById('previewTtd').classList.remove('hidden'); }
+    if(profilSekolah.imgCap){ document.getElementById('previewCap').src=profilSekolah.imgCap; document.getElementById('previewCap').classList.remove('hidden'); }
+}
+
+function switchView(viewId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+    document.getElementById(viewId).classList.remove('hidden');
+    const homeBtn = document.getElementById('navHomeBtn');
+    const guruBtn = document.getElementById('guru-corner-btn');
+    if(viewId === 'siswa-login-view'){
+        homeBtn.classList.remove('show');
+        if(guruBtn) guruBtn.style.display='flex';
+    } else if(viewId === 'admin-dashboard-view'){
+        homeBtn.classList.add('show');
+        if(guruBtn) guruBtn.style.display='none';
+        renderManajemenMapel();
+        renderTabelGuru();
+    } else if(viewId === 'siswa-hasil-view'){
+        homeBtn.classList.add('show');
+        if(guruBtn) guruBtn.style.display='none';
+    }
+}
+</script>
+
+<script>
+// ══════════════════════════════════════════════
+//  MODAL GURU & LOGIN
+// ══════════════════════════════════════════════
+function openGuruModal() {
+    document.getElementById('guru-modal-overlay').classList.add('show');
+    setTimeout(()=>document.getElementById('adminPassword').focus(), 100);
+}
+function closeGuruModal() {
+    document.getElementById('guru-modal-overlay').classList.remove('show');
+    document.getElementById('adminPassword').value = '';
+}
+function handleOverlayClick(e) {
+    if(e.target === document.getElementById('guru-modal-overlay')) closeGuruModal();
+}
+
+function loginAdmin() {
+    const pwd = document.getElementById('adminPassword').value;
+    const savedPwd = localStorage.getItem('sd_pengkol_pwd') || 'admin123';
+    if(pwd === savedPwd) {
+        closeGuruModal();
+        switchView('admin-dashboard-view');
+        showToast('Selamat datang, Guru!', 'success');
+    } else {
+        showToast('Password salah. Silakan coba lagi.', 'error');
+        document.getElementById('adminPassword').value = '';
+        document.getElementById('adminPassword').classList.add('error');
+        setTimeout(()=>document.getElementById('adminPassword').classList.remove('error'), 1500);
+        document.getElementById('adminPassword').focus();
+    }
+}
+
+function logout() {
+    switchView('siswa-login-view');
+    document.getElementById('siswaNama').value = '';
+    document.getElementById('siswaNisn').value = '';
+}
+
+// ══════════════════════════════════════════════
+//  IDENTITAS SEKOLAH
+// ══════════════════════════════════════════════
+function simpanIdentitasSekolah() {
+    profilSekolah.namaSekolah    = document.getElementById('cfgNamaSekolah').value.trim();
+    profilSekolah.alamatSekolah  = document.getElementById('cfgAlamatSekolah').value.trim();
+    profilSekolah.kotaPenerbit   = document.getElementById('cfgKotaPenerbit').value.trim();
+    profilSekolah.tanggalLaporan = document.getElementById('cfgTanggalLaporan').value.trim();
+    profilSekolah.namaKepsek     = document.getElementById('cfgNamaKepsek').value.trim();
+    profilSekolah.nipKepsek      = document.getElementById('cfgNipKepsek').value.trim();
+    fbSave('profilSekolah', profilSekolah);
+    localStorage.setItem('sd_pengkol_profil', JSON.stringify(profilSekolah));
+    terapkanIdentitasKeTampilan();
+    showToast('Identitas sekolah berhasil diperbarui!', 'success');
+}
+
+function prosesGambar(input, jenis) {
+    const file = input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        profilSekolah[jenis==='ttd'?'imgTtd':'imgCap'] = e.target.result;
+        const prev = document.getElementById(jenis==='ttd'?'previewTtd':'previewCap');
+        prev.src = e.target.result;
+        prev.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+// ══════════════════════════════════════════════
+//  GANTI PASSWORD
+// ══════════════════════════════════════════════
+function gantiPassword() {
+    const savedPwd = localStorage.getItem('sd_pengkol_pwd') || 'admin123';
+    const lama = document.getElementById('pwdLama').value;
+    const baru = document.getElementById('pwdBaru').value;
+    const konfirmasi = document.getElementById('pwdKonfirmasi').value;
+    if(!lama||!baru||!konfirmasi){ showToast('Semua kolom harus diisi.','error'); return; }
+    if(lama !== savedPwd){
+        showToast('Password lama tidak sesuai.','error');
+        document.getElementById('pwdLama').value='';
+        document.getElementById('pwdLama').classList.add('error');
+        setTimeout(()=>document.getElementById('pwdLama').classList.remove('error'),1500);
+        return;
+    }
+    if(baru.length < 6){ showToast('Password baru minimal 6 karakter.','error'); return; }
+    if(baru !== konfirmasi){ showToast('Konfirmasi password tidak cocok.','error'); document.getElementById('pwdKonfirmasi').value=''; return; }
+    fbSave('adminPassword', baru);
+    localStorage.setItem('sd_pengkol_pwd', baru);
+    document.getElementById('pwdLama').value='';
+    document.getElementById('pwdBaru').value='';
+    document.getElementById('pwdKonfirmasi').value='';
+    showToast('Password berhasil diubah!','success');
+}
+</script>
+
+<script>
+// ══════════════════════════════════════════════
+//  MANAJEMEN MATA PELAJARAN
+// ══════════════════════════════════════════════
+function renderManajemenMapel() {
+    const container = document.getElementById('containerMapel');
+    container.innerHTML = '';
+    dataMapel.forEach(mapel => {
+        const div = document.createElement('div');
+        div.className = "bg-white p-3 rounded-lg border border-gray-300 flex items-center justify-between shadow-xs";
+        div.innerHTML = `
+            <input type="text" value="${mapel.nama}" id="mapel-nama-${mapel.id}"
+                class="w-full font-medium bg-transparent focus:bg-white border-none focus:border focus:border-blue-500 rounded px-1.5 py-0.5 text-sm focus:outline-none">
+            <div class="flex gap-1 ml-2 shrink-0">
+                <button onclick="simpanEditMapel('${mapel.id}')" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-2 py-1 rounded text-xs font-semibold">Ubah</button>
+                <button onclick="hapusMapel('${mapel.id}')" class="bg-red-50 text-red-600 hover:bg-red-100 px-2 py-1 rounded text-xs font-semibold">Hapus</button>
+            </div>`;
+        container.appendChild(div);
+    });
+}
+
+function tambahMapelKosong() {
+    const idBaru = 'mp_' + Date.now();
+    dataMapel.push({ id: idBaru, nama: "Mata Pelajaran Baru" });
+    fbSave('dataMapel', dataMapel);
+    localStorage.setItem('sd_pengkol_mapel', JSON.stringify(dataMapel));
+    renderManajemenMapel(); renderTabelGuru();
+}
+
+function simpanEditMapel(id) {
+    const namaBaru = document.getElementById('mapel-nama-'+id).value.trim();
+    if(!namaBaru) return showToast('Nama pelajaran tidak boleh kosong!','error');
+    const idx = dataMapel.findIndex(m=>m.id===id);
+    if(idx>-1){
+        dataMapel[idx].nama = namaBaru;
+        fbSave('dataMapel', dataMapel);
+        localStorage.setItem('sd_pengkol_mapel', JSON.stringify(dataMapel));
+        renderManajemenMapel(); renderTabelGuru();
+        showToast('Mata pelajaran berhasil diubah!','success');
+    }
+}
+
+function hapusMapel(id) {
+    if(confirm('Menghapus pelajaran ini akan menghapus kolom nilainya di seluruh siswa. Lanjutkan?')){
+        dataMapel = dataMapel.filter(m=>m.id!==id);
+        fbSave('dataMapel', dataMapel);
+        localStorage.setItem('sd_pengkol_mapel', JSON.stringify(dataMapel));
+        renderManajemenMapel(); renderTabelGuru();
+        showToast('Mata pelajaran dihapus.','info');
+    }
+}
+
+// ══════════════════════════════════════════════
+//  TABEL SISWA & NILAI
+// ══════════════════════════════════════════════
+function renderTabelGuru() {
+    const headerRow = document.getElementById('headTabelSiswa');
+    let hHTML = '<th class="p-3 min-w-44">Nama Lengkap</th><th class="p-3 w-36">NISN (Password)</th>';
+    dataMapel.forEach(m => { hHTML += `<th class="p-3 text-center w-24 border-l border-gray-200">${m.nama}</th>`; });
+    hHTML += '<th class="p-3 text-center w-36 border-l border-gray-200">Aksi</th>';
+    headerRow.innerHTML = hHTML;
+
+    const tbody = document.getElementById('tabelSiswaInput');
+    tbody.innerHTML = '';
+    dataSiswa.forEach(siswa => {
+        const tr = document.createElement('tr');
+        tr.className = "border-b hover:bg-gray-50 text-gray-800";
+        let nilaiHTML = '';
+        dataMapel.forEach(m => {
+            const v = siswa.nilai[m.id] !== undefined ? siswa.nilai[m.id] : '';
+            nilaiHTML += `<td class="p-2 text-center border-l border-gray-100">
+                <input type="number" value="${v}" id="score-${siswa.id}-${m.id}" placeholder="0"
+                    class="w-16 text-center bg-white border border-gray-300 rounded px-1 py-1 text-sm focus:border-blue-500 focus:outline-none">
+            </td>`;
+        });
+        tr.innerHTML = `
+            <td class="p-2"><input type="text" value="${siswa.nama}" id="nama-${siswa.id}" placeholder="Nama Siswa"
+                class="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"></td>
+            <td class="p-2"><input type="text" value="${siswa.nisn}" id="nisn-${siswa.id}" placeholder="NISN"
+                class="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm font-mono focus:border-blue-500 focus:outline-none"></td>
+            ${nilaiHTML}
+            <td class="p-2 text-center border-l border-gray-100">
+                <div class="flex justify-center gap-1">
+                    <button onclick="simpanBarisSiswa(${siswa.id})" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-semibold">Simpan</button>
+                    <button onclick="hapusBarisSiswa(${siswa.id})" class="bg-red-100 hover:bg-red-200 text-red-600 px-2 py-1 rounded text-xs font-semibold">Hapus</button>
+                </div>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+    if(dataSiswa.length===0){
+        tbody.innerHTML = `<tr><td colspan="${dataMapel.length+3}" class="p-4 text-center text-gray-400">Belum ada data siswa.</td></tr>`;
+    }
+}
+
+function tambahBarisKosong() {
+    dataSiswa.push({ id: Date.now(), nama:"", nisn:"", nilai:{} });
+    renderTabelGuru();
+}
+
+function simpanBarisSiswa(id) {
+    const namaVal = document.getElementById('nama-'+id).value.trim();
+    const nisnVal = document.getElementById('nisn-'+id).value.trim();
+    if(!namaVal||!nisnVal) return showToast('Nama dan NISN tidak boleh kosong!','error');
+    let nilaiObj = {};
+    dataMapel.forEach(m => { nilaiObj[m.id] = document.getElementById('score-'+id+'-'+m.id).value || 0; });
+    const idx = dataSiswa.findIndex(s=>s.id===id);
+    if(idx>-1){
+        dataSiswa[idx] = { id, nama:namaVal, nisn:nisnVal, nilai:nilaiObj };
+        fbSave('dataSiswa', dataSiswa);
+        localStorage.setItem('sd_pengkol_database', JSON.stringify(dataSiswa));
+        showToast('Data '+namaVal+' berhasil disimpan.','success');
+        renderTabelGuru();
+    }
+}
+
+function hapusBarisSiswa(id) {
+    if(confirm('Hapus data siswa ini?')){
+        dataSiswa = dataSiswa.filter(s=>s.id!==id);
+        fbSave('dataSiswa', dataSiswa);
+        localStorage.setItem('sd_pengkol_database', JSON.stringify(dataSiswa));
+        renderTabelGuru();
+        showToast('Data siswa dihapus.','info');
+    }
+}
+</script>
