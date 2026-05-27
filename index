@@ -642,3 +642,117 @@ function hapusBarisSiswa(id) {
     }
 }
 </script>
+
+<script>
+// ══════════════════════════════════════════════
+//  LOGIN SISWA & RAPORT
+// ══════════════════════════════════════════════
+function loginSiswa() {
+    const namaInput = document.getElementById('siswaNama').value.trim();
+    const nisnInput = document.getElementById('siswaNisn').value.trim();
+    const siswa = dataSiswa.find(s => s.nama.toLowerCase()===namaInput.toLowerCase() && s.nisn===nisnInput);
+    if(!siswa){ showToast('Nama atau NISN tidak cocok. Periksa kembali data Anda.','error'); return; }
+
+    document.getElementById('rptNamaSekolah').innerText    = profilSekolah.namaSekolah.toUpperCase();
+    document.getElementById('rptAlamatSekolah').innerText  = profilSekolah.alamatSekolah;
+    document.getElementById('rptKeteranganTempatTgl').innerText = profilSekolah.kotaPenerbit+', '+profilSekolah.tanggalLaporan;
+    document.getElementById('rptNamaKepsek').innerText     = profilSekolah.namaKepsek;
+    document.getElementById('rptNipKepsek').innerText      = profilSekolah.nipKepsek.startsWith('NIP') ? profilSekolah.nipKepsek : 'NIP. '+profilSekolah.nipKepsek;
+
+    const imgTtdEl = document.getElementById('rptImgTtd');
+    if(profilSekolah.imgTtd){ imgTtdEl.src=profilSekolah.imgTtd; imgTtdEl.style.display='block'; } else { imgTtdEl.style.display='none'; }
+    const imgCapEl = document.getElementById('rptImgCap');
+    if(profilSekolah.imgCap){ imgCapEl.src=profilSekolah.imgCap; imgCapEl.style.display='block'; } else { imgCapEl.style.display='none'; }
+
+    document.getElementById('repNama').innerText = siswa.nama;
+    document.getElementById('repNisn').innerText = siswa.nisn;
+
+    const tbody = document.getElementById('bodyRaportCetak');
+    tbody.innerHTML = '';
+    let total = 0;
+    dataMapel.forEach((mapel, i) => {
+        const nilai = siswa.nilai[mapel.id] || 0;
+        total += parseFloat(nilai);
+        const tr = document.createElement('tr');
+        tr.style.background = i%2===0 ? '#fff' : '#f9fafb';
+        tr.innerHTML =
+            '<td style="border:1px solid #999;padding:9px;text-align:center;color:#111;">'+(i+1)+'</td>'+
+            '<td style="border:1px solid #999;padding:9px;font-weight:600;color:#111;">'+mapel.nama+'</td>'+
+            '<td style="border:1px solid #999;padding:9px;text-align:center;font-weight:700;color:#1e3a8a;font-size:15px;">'+nilai+'</td>';
+        tbody.appendChild(tr);
+    });
+    const rata = dataMapel.length>0 ? (total/dataMapel.length) : 0;
+    const trRata = document.createElement('tr');
+    trRata.style.background = '#eff6ff';
+    trRata.innerHTML =
+        '<td colspan="2" style="border:1px solid #999;padding:9px;text-align:right;font-weight:700;color:#374151;">Rata-Rata Capaian Nilai :</td>'+
+        '<td style="border:1px solid #999;padding:9px;text-align:center;font-weight:900;color:#1d4ed8;font-size:16px;">'+rata.toFixed(1)+'</td>';
+    tbody.appendChild(trRata);
+    switchView('siswa-hasil-view');
+}
+
+// ══════════════════════════════════════════════
+//  DOWNLOAD PDF & JPG
+// ══════════════════════════════════════════════
+function downloadPDF() {
+    const el = document.getElementById('raport-cetak');
+    const nama = document.getElementById('repNama').innerText.trim() || 'Siswa';
+    const btnPDF = document.getElementById('btnPDF');
+    const btnJPG = document.getElementById('btnJPG');
+    btnPDF.disabled=true; btnPDF.innerText='⏳ Memproses...'; btnJPG.disabled=true;
+    html2pdf().set({
+        margin:[15,15,15,15],
+        filename:'Raport_'+nama.replace(/\s+/g,'_')+'.pdf',
+        image:{ type:'jpeg', quality:0.99 },
+        html2canvas:{ scale:3, useCORS:true, logging:false, backgroundColor:'#ffffff', width:794, scrollX:0, scrollY:0 },
+        jsPDF:{ unit:'mm', format:'a4', orientation:'portrait' }
+    }).from(el).save().then(()=>{
+        btnPDF.disabled=false; btnPDF.innerHTML='📄 Unduh PDF'; btnJPG.disabled=false;
+        showToast('PDF berhasil diunduh!','success');
+    }).catch(()=>{
+        btnPDF.disabled=false; btnPDF.innerHTML='📄 Unduh PDF'; btnJPG.disabled=false;
+        showToast('Gagal membuat PDF. Coba lagi.','error');
+    });
+}
+
+function downloadJPG() {
+    const el = document.getElementById('raport-cetak');
+    const nama = document.getElementById('repNama').innerText.trim() || 'Siswa';
+    const btnPDF = document.getElementById('btnPDF');
+    const btnJPG = document.getElementById('btnJPG');
+    btnJPG.disabled=true; btnJPG.innerText='⏳ Memproses...'; btnPDF.disabled=true;
+    html2canvas(el,{ scale:3, useCORS:true, logging:false, backgroundColor:'#ffffff', width:794, height:1123, windowWidth:794, scrollX:0, scrollY:0 })
+    .then(canvas=>{
+        const a4W=794*3, a4H=1123*3;
+        const fc=document.createElement('canvas'); fc.width=a4W; fc.height=a4H;
+        const ctx=fc.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,a4W,a4H);
+        const scale=Math.min(a4W/canvas.width, a4H/canvas.height);
+        ctx.drawImage(canvas,(a4W-canvas.width*scale)/2, 0, canvas.width*scale, canvas.height*scale);
+        const link=document.createElement('a');
+        link.download='Raport_'+nama.replace(/\s+/g,'_')+'.jpg';
+        link.href=fc.toDataURL('image/jpeg',0.98);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        btnJPG.disabled=false; btnJPG.innerHTML='🖼️ Unduh Gambar (JPG)'; btnPDF.disabled=false;
+        showToast('Gambar A4 berhasil diunduh!','success');
+    }).catch(()=>{
+        btnJPG.disabled=false; btnJPG.innerHTML='🖼️ Unduh Gambar (JPG)'; btnPDF.disabled=false;
+        showToast('Gagal membuat gambar. Coba lagi.','error');
+    });
+}
+
+// ══════════════════════════════════════════════
+//  TOAST NOTIFICATION
+// ══════════════════════════════════════════════
+function showToast(msg, type) {
+    type = type||'info';
+    const icons = { success:'✅', error:'❌', info:'ℹ️' };
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-'+type;
+    toast.innerHTML = '<span class="toast-icon">'+icons[type]+'</span><span class="toast-msg">'+msg+'</span><button class="toast-close" onclick="this.parentElement.remove()">×</button>';
+    container.appendChild(toast);
+    setTimeout(()=>{ toast.classList.add('hide'); setTimeout(()=>{ if(toast.parentElement) toast.remove(); },350); }, 3500);
+}
+</script>
+</body>
+</html>
