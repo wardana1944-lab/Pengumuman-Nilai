@@ -164,9 +164,6 @@
 </head>
 <body style="background:#f0f4f8;min-height:100vh;">
 
-    <!-- Firebase status bar -->
-    <div id="fb-status-bar">🔥 Firebase Terhubung — Data tersinkronisasi secara real-time</div>
-
     <!-- TOAST CONTAINER -->
     <div id="toast-container"></div>
 
@@ -208,7 +205,7 @@
             <div style="text-align:center;margin-bottom:28px;">
                 <div style="width:56px;height:56px;background:linear-gradient(135deg,#dbeafe,#bfdbfe);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px;">🎓</div>
                 <h2 style="font-size:22px;font-weight:900;color:#0f172a;margin-bottom:6px;" id="titleLanding">Portal Nilai Siswa</h2>
-                <p style="font-size:13px;color:#64748b;">Masukkan data sesuai yang diisikan oleh Guru</p>
+                <p style="font-size:13px;color:#64748b;">Selamat Datang di Portal Nilai SD N Pengkol. Pantau hasil belajar dan prestasimu di sini</p>
             </div>
             <div class="modern-card" style="padding:32px 36px;">
                 <div style="margin-bottom:18px;">
@@ -349,9 +346,9 @@
             <div class="raport-scroll-wrapper">
             <div id="raport-cetak" style="background:white;width:794px;min-height:1123px;padding:60px 70px;margin:0 auto;border-top:14px solid #1e3a8a;box-shadow:0 8px 40px rgba(0,0,0,0.12);font-family:'Times New Roman',serif;box-sizing:border-box;">
                 <div style="text-align:center;border-bottom:4px solid #111;padding-bottom:16px;margin-bottom:24px;">
-                    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#111;margin:0 0 4px;">PEMERINTAH KABUPATEN / KOTA DINAS PENDIDIKAN</h2>
+                    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#111;margin:0 0 4px;">PEMERINTAH KABUPATEN KULON PROGO</h2>
                     <h3 id="rptNamaSekolah" style="font-size:20px;font-weight:900;text-transform:uppercase;color:#1a1a1a;margin:0 0 4px;">SD NEGERI PENGKOL</h3>
-                    <p id="rptAlamatSekolah" style="font-size:11px;color:#555;font-style:italic;margin:0;">Alamat: Jl. Raya Pengkol No. 12, Jawa Tengah</p>
+                    <p id="rptAlamatSekolah" style="font-size:11px;color:#555;font-style:italic;margin:0;">Pengkol, Gulurejo, Lendah, Kulon Progo, 55663</p>
                 </div>
                 <h4 style="text-align:center;font-size:14px;font-weight:700;text-decoration:underline;text-transform:uppercase;letter-spacing:0.12em;color:#111;margin:0 0 24px;">LAPORAN HASIL UJIAN AKHIR SISWA</h4>
                 <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;">
@@ -453,7 +450,7 @@ async function loadSemuaDataDariFirebase() {
 function terapkanIdentitasKeTampilan() {
     document.getElementById('navNamaSekolah').innerText = profilSekolah.namaSekolah;
     const t = document.getElementById('titleLanding');
-    if(t) t.innerText = 'Portal Nilai ' + profilSekolah.namaSekolah;
+    if(t) t.innerText = 'PORTAL NILAI ' + profilSekolah.namaSekolah;
     document.getElementById('cfgNamaSekolah').value    = profilSekolah.namaSekolah;
     document.getElementById('cfgAlamatSekolah').value  = profilSekolah.alamatSekolah;
     document.getElementById('cfgKotaPenerbit').value   = profilSekolah.kotaPenerbit;
