@@ -500,18 +500,34 @@ function handleOverlayClick(e) {
 
 function loginAdmin() {
     const pwd = document.getElementById('adminPassword').value;
-    const savedPwd = localStorage.getItem('sd_pengkol_pwd') || 'admin123';
-    if(pwd === savedPwd) {
-        closeGuruModal();
-        switchView('admin-dashboard-view');
-        showToast('Selamat datang, Guru!', 'success');
-    } else {
-        showToast('Password salah. Silakan coba lagi.', 'error');
-        document.getElementById('adminPassword').value = '';
-        document.getElementById('adminPassword').classList.add('error');
-        setTimeout(()=>document.getElementById('adminPassword').classList.remove('error'), 1500);
-        document.getElementById('adminPassword').focus();
-    }
+    if (!pwd) return;
+
+    // Cek ke Firebase dulu, fallback ke localStorage
+    const checkLogin = (savedPwd) => {
+        if(pwd === savedPwd) {
+            closeGuruModal();
+            switchView('admin-dashboard-view');
+            showToast('Selamat datang, Guru!', 'success');
+        } else {
+            showToast('Password salah. Silakan coba lagi.', 'error');
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('adminPassword').classList.add('error');
+            setTimeout(()=>document.getElementById('adminPassword').classList.remove('error'), 1500);
+            document.getElementById('adminPassword').focus();
+        }
+    };
+
+    // Ambil password dari Firebase secara real-time
+    db.ref('adminPassword').get().then(snap => {
+        const savedPwd = snap.exists() ? snap.val() : (localStorage.getItem('sd_pengkol_pwd') || 'admin123');
+        // Simpan ke localStorage sebagai cache
+        localStorage.setItem('sd_pengkol_pwd', savedPwd);
+        checkLogin(savedPwd);
+    }).catch(() => {
+        // Fallback ke localStorage jika Firebase gagal
+        const savedPwd = localStorage.getItem('sd_pengkol_pwd') || 'admin123';
+        checkLogin(savedPwd);
+    });
 }
 
 function logout() {
@@ -553,26 +569,40 @@ function prosesGambar(input, jenis) {
 //  GANTI PASSWORD
 // ══════════════════════════════════════════════
 function gantiPassword() {
-    const savedPwd = localStorage.getItem('sd_pengkol_pwd') || 'admin123';
     const lama = document.getElementById('pwdLama').value;
     const baru = document.getElementById('pwdBaru').value;
     const konfirmasi = document.getElementById('pwdKonfirmasi').value;
     if(!lama||!baru||!konfirmasi){ showToast('Semua kolom harus diisi.','error'); return; }
-    if(lama !== savedPwd){
-        showToast('Password lama tidak sesuai.','error');
-        document.getElementById('pwdLama').value='';
-        document.getElementById('pwdLama').classList.add('error');
-        setTimeout(()=>document.getElementById('pwdLama').classList.remove('error'),1500);
-        return;
-    }
     if(baru.length < 6){ showToast('Password baru minimal 6 karakter.','error'); return; }
     if(baru !== konfirmasi){ showToast('Konfirmasi password tidak cocok.','error'); document.getElementById('pwdKonfirmasi').value=''; return; }
-    fbSave('adminPassword', baru);
-    localStorage.setItem('sd_pengkol_pwd', baru);
-    document.getElementById('pwdLama').value='';
-    document.getElementById('pwdBaru').value='';
-    document.getElementById('pwdKonfirmasi').value='';
-    showToast('Password berhasil diubah!','success');
+
+    // Ambil password dari Firebase untuk verifikasi
+    db.ref('adminPassword').get().then(snap => {
+        const savedPwd = snap.exists() ? snap.val() : (localStorage.getItem('sd_pengkol_pwd') || 'admin123');
+        if(lama !== savedPwd){
+            showToast('Password lama tidak sesuai.','error');
+            document.getElementById('pwdLama').value='';
+            document.getElementById('pwdLama').classList.add('error');
+            setTimeout(()=>document.getElementById('pwdLama').classList.remove('error'),1500);
+            return;
+        }
+        // Simpan ke Firebase dan localStorage
+        fbSave('adminPassword', baru);
+        localStorage.setItem('sd_pengkol_pwd', baru);
+        document.getElementById('pwdLama').value='';
+        document.getElementById('pwdBaru').value='';
+        document.getElementById('pwdKonfirmasi').value='';
+        showToast('Password berhasil diubah! Berlaku di semua perangkat.','success');
+    }).catch(() => {
+        const savedPwd = localStorage.getItem('sd_pengkol_pwd') || 'admin123';
+        if(lama !== savedPwd){ showToast('Password lama tidak sesuai.','error'); return; }
+        fbSave('adminPassword', baru);
+        localStorage.setItem('sd_pengkol_pwd', baru);
+        document.getElementById('pwdLama').value='';
+        document.getElementById('pwdBaru').value='';
+        document.getElementById('pwdKonfirmasi').value='';
+        showToast('Password berhasil diubah!','success');
+    });
 }
 </script>
 
@@ -709,45 +739,69 @@ function hapusBarisSiswa(id) {
 function loginSiswa() {
     const namaInput = document.getElementById('siswaNama').value.trim();
     const nisnInput = document.getElementById('siswaNisn').value.trim();
-    const siswa = dataSiswa.find(s => s.nama.toLowerCase()===namaInput.toLowerCase() && s.nisn===nisnInput);
-    if(!siswa){ showToast('Nama atau NISN tidak cocok. Periksa kembali data Anda.','error'); return; }
+    if(!namaInput || !nisnInput){ showToast('Nama dan NISN harus diisi.','error'); return; }
 
-    document.getElementById('rptNamaSekolah').innerText    = profilSekolah.namaSekolah.toUpperCase();
-    document.getElementById('rptAlamatSekolah').innerText  = profilSekolah.alamatSekolah;
-    document.getElementById('rptKeteranganTempatTgl').innerText = profilSekolah.kotaPenerbit+', '+profilSekolah.tanggalLaporan;
-    document.getElementById('rptNamaKepsek').innerText     = profilSekolah.namaKepsek;
-    document.getElementById('rptNipKepsek').innerText      = profilSekolah.nipKepsek.startsWith('NIP') ? profilSekolah.nipKepsek : 'NIP. '+profilSekolah.nipKepsek;
+    const cariSiswa = () => dataSiswa.find(s => s.nama.toLowerCase()===namaInput.toLowerCase() && s.nisn===nisnInput);
 
-    const imgTtdEl = document.getElementById('rptImgTtd');
-    if(profilSekolah.imgTtd){ imgTtdEl.src=profilSekolah.imgTtd; imgTtdEl.style.display='block'; } else { imgTtdEl.style.display='none'; }
-    const imgCapEl = document.getElementById('rptImgCap');
-    if(profilSekolah.imgCap){ imgCapEl.src=profilSekolah.imgCap; imgCapEl.style.display='block'; } else { imgCapEl.style.display='none'; }
+    const tampilkanRaport = (siswa) => {
+        document.getElementById('rptNamaSekolah').innerText    = profilSekolah.namaSekolah.toUpperCase();
+        document.getElementById('rptAlamatSekolah').innerText  = profilSekolah.alamatSekolah;
+        document.getElementById('rptKeteranganTempatTgl').innerText = profilSekolah.kotaPenerbit+', '+profilSekolah.tanggalLaporan;
+        document.getElementById('rptNamaKepsek').innerText     = profilSekolah.namaKepsek;
+        document.getElementById('rptNipKepsek').innerText      = profilSekolah.nipKepsek.startsWith('NIP') ? profilSekolah.nipKepsek : 'NIP. '+profilSekolah.nipKepsek;
 
-    document.getElementById('repNama').innerText = siswa.nama;
-    document.getElementById('repNisn').innerText = siswa.nisn;
+        const imgTtdEl = document.getElementById('rptImgTtd');
+        if(profilSekolah.imgTtd){ imgTtdEl.src=profilSekolah.imgTtd; imgTtdEl.style.display='block'; } else { imgTtdEl.style.display='none'; }
+        const imgCapEl = document.getElementById('rptImgCap');
+        if(profilSekolah.imgCap){ imgCapEl.src=profilSekolah.imgCap; imgCapEl.style.display='block'; } else { imgCapEl.style.display='none'; }
 
-    const tbody = document.getElementById('bodyRaportCetak');
-    tbody.innerHTML = '';
-    let total = 0;
-    dataMapel.forEach((mapel, i) => {
-        const nilai = siswa.nilai[mapel.id] || 0;
-        total += parseFloat(nilai);
-        const tr = document.createElement('tr');
-        tr.style.background = i%2===0 ? '#fff' : '#f9fafb';
-        tr.innerHTML =
-            '<td style="border:1px solid #999;padding:9px;text-align:center;color:#111;">'+(i+1)+'</td>'+
-            '<td style="border:1px solid #999;padding:9px;font-weight:600;color:#111;">'+mapel.nama+'</td>'+
-            '<td style="border:1px solid #999;padding:9px;text-align:center;font-weight:700;color:#1e3a8a;font-size:15px;">'+nilai+'</td>';
-        tbody.appendChild(tr);
+        document.getElementById('repNama').innerText = siswa.nama;
+        document.getElementById('repNisn').innerText = siswa.nisn;
+
+        const tbody = document.getElementById('bodyRaportCetak');
+        tbody.innerHTML = '';
+        let total = 0;
+        dataMapel.forEach((mapel, i) => {
+            const nilaiRaw = siswa.nilai[mapel.id] || 0;
+            const nilaiNum = parseFloat(nilaiRaw) || 0;
+            total += nilaiNum;
+            const nilaiTampil = Number.isInteger(nilaiNum) ? nilaiNum : parseFloat(nilaiNum.toFixed(2));
+            const tr = document.createElement('tr');
+            tr.style.background = i%2===0 ? '#fff' : '#f9fafb';
+            tr.innerHTML =
+                '<td style="border:1px solid #999;padding:9px;text-align:center;color:#111;">'+(i+1)+'</td>'+
+                '<td style="border:1px solid #999;padding:9px;font-weight:600;color:#111;">'+mapel.nama+'</td>'+
+                '<td style="border:1px solid #999;padding:9px;text-align:center;font-weight:700;color:#1e3a8a;font-size:15px;">'+nilaiTampil+'</td>';
+            tbody.appendChild(tr);
+        });
+        const rata = dataMapel.length>0 ? (total/dataMapel.length) : 0;
+        const rataTampil = Number.isInteger(rata) ? rata : parseFloat(rata.toFixed(2));
+        const trRata = document.createElement('tr');
+        trRata.style.background = '#eff6ff';
+        trRata.innerHTML =
+            '<td colspan="2" style="border:1px solid #999;padding:9px;text-align:right;font-weight:700;color:#374151;">Rata-Rata Capaian Nilai :</td>'+
+            '<td style="border:1px solid #999;padding:9px;text-align:center;font-weight:900;color:#1d4ed8;font-size:16px;">'+rataTampil+'</td>';
+        tbody.appendChild(trRata);
+        switchView('siswa-hasil-view');
+    }; // end tampilkanRaport
+
+    // Cari di data yang sudah ada dulu
+    let siswa = cariSiswa();
+    if(siswa) { tampilkanRaport(siswa); return; }
+
+    // Jika tidak ketemu, reload data dari Firebase (mungkin belum selesai load)
+    showToast('Memuat data...', 'info');
+    db.ref('dataSiswa').get().then(snap => {
+        if(snap.exists()) dataSiswa = snap.val();
+        siswa = cariSiswa();
+        if(siswa) {
+            tampilkanRaport(siswa);
+        } else {
+            showToast('Nama atau NISN tidak cocok. Periksa kembali data Anda.', 'error');
+        }
+    }).catch(() => {
+        showToast('Nama atau NISN tidak cocok. Periksa kembali data Anda.', 'error');
     });
-    const rata = dataMapel.length>0 ? (total/dataMapel.length) : 0;
-    const trRata = document.createElement('tr');
-    trRata.style.background = '#eff6ff';
-    trRata.innerHTML =
-        '<td colspan="2" style="border:1px solid #999;padding:9px;text-align:right;font-weight:700;color:#374151;">Rata-Rata Capaian Nilai :</td>'+
-        '<td style="border:1px solid #999;padding:9px;text-align:center;font-weight:900;color:#1d4ed8;font-size:16px;">'+rata.toFixed(1)+'</td>';
-    tbody.appendChild(trRata);
-    switchView('siswa-hasil-view');
 }
 
 // ══════════════════════════════════════════════
